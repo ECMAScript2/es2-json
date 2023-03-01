@@ -187,10 +187,21 @@ test('[Object Literals] Trailing comma in object literal', (t) => {
     t.deepEqual( json2.parse( "{\"hello\": \"world\", \"foo\": \"bar\",}" ), void 0 );
 });
 
-test('Source string containing a JavaScript expression', (t) => {
-    ["1 + 1", "1 * 2", "var value = 123;", "{});value = 123;({}", "call()", "1, 2, 3, \"value\""].forEach(
-        function (expression) {
-            t.deepEqual( json2.parse( expression ), void 0 );
-        }
-    );
+test('Source string containing a JavaScript expression "1 + 1"', (t) => {
+    t.deepEqual( json2.parse( "1 + 1" ), void 0 );
+});
+test('Source string containing a JavaScript expression "1 * 2"', (t) => {
+    t.deepEqual( json2.parse( "1 * 2" ), void 0 );
+});
+test('Source string containing a JavaScript expression "var value = 123;"', (t) => {
+    t.deepEqual( json2.parse( "var value = 123;" ), void 0 );
+});
+test('Source string containing a JavaScript expression "{});value = 123;({}"', (t) => {
+    t.deepEqual( json2.parse( "{});value = 123;({}" ), void 0 );
+});
+test('Source string containing a JavaScript expression "call()"', (t) => {
+    t.deepEqual( json2.parse( "call()" ), void 0 );
+});
+test('Source string containing a JavaScript expression "1, 2, 3, \"value\""', (t) => {
+    t.deepEqual( json2.parse( "1, 2, 3, \"value\"" ), void 0 );
 });

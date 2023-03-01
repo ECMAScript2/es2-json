@@ -77,7 +77,18 @@ if( !JSON ){
                 // Format integers to have at least two digits.
                 return n < 10 ? '0' + n : n;
             };
-
+            function toXXX( n ){
+                n = '00' + n;
+                return n.substr( n.length - 3 );
+            };
+            function toXXXX( n ){
+                n = '000' + n;
+                return n.substr( n.length - 4 );
+            };
+            function toXXXXXX( n ){
+                n = '00000' + n;
+                return n.substr( n.length - 6 );
+            };
             /**
              * 
              * @param {string} str 
@@ -131,7 +142,8 @@ if( !JSON ){
                     v, // The member value.
                     l, gap = opt_mind,
                     partial, n = -1,
-                    value = holder[ key ];
+                    value = holder[ key ],
+                    year;
 
                 // null or 0 or NaN or undefined
                 if( value === 0 ) return '0';
@@ -143,13 +155,20 @@ if( !JSON ){
                 if( typeof value === 'object' ){
                     switch( value.constructor ){
                         case Date :
+                            year = value.getUTCFullYear();
+
                             return _isFinite( + value ) ? // <= value.valueOf()
-                                    value.getUTCFullYear() + '-' +
+                                    '"' + (
+                                        year <= 0 || 1e4 <= year
+                                            ? ( year < 0 ? '-' : '+' ) + toXXXXXX( year < 0 ? -year : year )
+                                            : toXXXX( year )
+                                    ) + '-' +
                                     toXX( value.getUTCMonth() + 1 ) + '-' +
-                                    toXX( value.getUTCDate() ) + 'T' +
-                                    toXX( value.getUTCHours() ) + ':' +
-                                    toXX( value.getUTCMinutes() ) + ':' +
-                                    toXX( value.getUTCSeconds() ) + 'Z' : 'null';
+                                    toXX( value.getUTCDate()      ) + 'T' +
+                                    toXX( value.getUTCHours()     ) + ':' +
+                                    toXX( value.getUTCMinutes()   ) + ':' +
+                                    toXX( value.getUTCSeconds()   ) + '.' +
+                                    toXXX( value.getUTCMilliseconds() ) + 'Z"' : 'null';
                         case String :
                             return wrapQuoteAndEscape( '' + value );
                         case Number :
@@ -497,6 +516,7 @@ if( !JSON ){
                         rule = rules[ phase ];
                         
                         switch( phase ){
+                            case END_TO_PARSE        : 
                             case ENTER_OBJECT        : // object に入った
                             case BEFORE_OBJECT_KEY   : // object の key の開始
                             case BEFORE_OBJECT_CORON : // object の key に続く : を待つ
