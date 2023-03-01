@@ -1,0 +1,29 @@
+{
+  "name": "es2-json",
+  "version": "0.1.0",
+  "description": "正規表現を使わない JSON 実装。正規表現を実装しないモバイル IE4(シグマリオン2等)での動作を目指す。",
+  "homepage": "https://github.com/ECMAScript2/es2-json",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com.itozyun:ECMAScript2/es2-json.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ECMAScript2/es2-json/issues"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "ava"
+  },
+  "ava": {
+    "files": [
+      "test/**/*"
+    ]
+  },
+  "author": "itozyun <itozyun@gmail.com> (https://outcloud.blogspot.com/)",
+  "license": "MIT",
+  "devDependencies": {
+    "ava": "^5.2.0",
+    "google-closure-compiler": "^20230206.0.0",
+    "gulp": "^4.0.2"
+  }
+}
