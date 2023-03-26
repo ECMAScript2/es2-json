@@ -7,17 +7,6 @@ var JSON = JSON;
 
 if( !JSON ){
     JSON = {
-        /** @type {!Object.<string,string>} */
-        _meta : { // table of character substitutions
-            ' '  : ' ',
-            '\b' : '\\b',
-            '\t' : '\\t',
-            '\n' : '\\n',
-            '\f' : '\\f',
-            '\r' : '\\r',
-            '"'  : '\\"',
-            '\\' : '\\\\'
-        },
         /**
          *  The stringify method takes a value and an optional replacer, and an optional
          *  space parameter, and returns a JSON text. The replacer can be a function
@@ -32,7 +21,7 @@ if( !JSON ){
          * @return {string|undefined} 
          */
         stringify : function( value, opt_replacer, opt_space ){
-            var _isFinite = isFinite, i, indent = '';
+            var _isFinite = isFinite, i, indent = '', objectList = [], isNestingError = false;
 
             // If the space parameter is a number, make an indent string containing that
             // many spaces.
@@ -99,7 +88,16 @@ if( !JSON ){
                 // backslash characters, then we can safely slap some quotes around it.
                 // Otherwise we must also replace the offending characters with safe escape
                 // sequences.
-                var meta = JSON._meta, i = 0, l = str.length, chr, code, ret = [ '"' ], n = 0;
+                var meta = { // table of character substitutions
+                    // ' '  : ' ',
+                    '\b' : '\\b',
+                    '\t' : '\\t',
+                    '\n' : '\\n',
+                    '\f' : '\\f',
+                    '\r' : '\\r',
+                    '"'  : '\\"',
+                    '\\' : '\\\\'
+                }, i = 0, l = str.length, chr, code, ret = [ '"' ], n = 0;
 
                 for( ; i < l; ++i ){
                     chr  = str.charAt( i );
@@ -132,7 +130,7 @@ if( !JSON ){
              * @param {!Function|!Array=} opt_replacer 
              * @param {string=} opt_mind 
              * @param {string=} opt_indent 
-             * @returns 
+             * @return {string|undefined} 
              */
             function toString( key, holder, opt_replacer, opt_mind, opt_indent ){
                 // Produce a string from holder[key].
@@ -143,7 +141,7 @@ if( !JSON ){
                     l, gap = opt_mind,
                     partial, n = -1,
                     value = holder[ key ],
-                    year;
+                    year, indexOfObjectList;
 
                 // null or 0 or NaN or undefined
                 if( value === 0 ) return '0';
@@ -190,7 +188,7 @@ if( !JSON ){
                 // What happens next depends on the value's type.
                 switch( typeof value ){
                     case 'string':
-                        return wrapQuoteAndEscape(value);
+                        return wrapQuoteAndEscape( value );
 
                     // JSON numbers must be finite. Encode non-finite numbers as null.
                     case 'number':
@@ -208,8 +206,17 @@ if( !JSON ){
                     case 'object':
                         // Due to a specification blunder in ECMAScript, typeof null is 'object',
                         // so watch out for that case.
+                        if( DEFINE_ES2_JSON__ENABLE_ALL_FURTURES ){
+                            if( !value ) return 'null';
+                        };
 
-                        if( !value ) return 'null';
+                        if( objectList.indexOf( value ) === -1 ){
+                            objectList.push( value );
+                            indexOfObjectList = objectList.length;
+                        } else {
+                            isNestingError = true;
+                            return;
+                        };
 
                         // Make an array to hold the partial results of stringifying this object value.
 
@@ -219,6 +226,7 @@ if( !JSON ){
                         // Is the value an array?
 
                         if( isArray( value ) ){
+                            value = /** @type {!Array} */ (value);
                             // The value is an array. Stringify every element. Use null as a placeholder
                             // for non-JSON values.
                             for( i = 0, l = value.length; i < l; ++i ){
@@ -227,6 +235,10 @@ if( !JSON ){
                                 } else {
                                     partial[ i ] = toString( i, value ) || 'null';
                                 };
+                                if( isNestingError ){
+                                    return;
+                                };
+                                objectList.length = indexOfObjectList;
                             };
 
                             // Join all of the elements together, separated with commas, and wrap them in
@@ -237,6 +249,7 @@ if( !JSON ){
                                     '[\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind + ']' :
                                     '[' + partial.join( ',' ) + ']';
                         };
+                        value = /** @type {!Object} */ (value);
 
                         // If the replacer is an array, use it to select the members to be stringified.
 
@@ -245,6 +258,10 @@ if( !JSON ){
                                 k = opt_replacer[ i ];
                                 if( typeof k === 'string' ){
                                     v = toString( k, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
+                                    if( isNestingError ){
+                                        return;
+                                    };
+                                    objectList.length = indexOfObjectList;
                                     if( v ){
                                         partial[ ++n ] = wrapQuoteAndEscape( k ) + ( gap ? ': ' : ':' ) + v;
                                     };
@@ -261,6 +278,10 @@ if( !JSON ){
                                     } else {
                                         v = toString( k, value );
                                     };
+                                    if( isNestingError ){
+                                        return;
+                                    };
+                                    objectList.length = indexOfObjectList;
                                     if( v ){
                                         partial[ ++n ] = wrapQuoteAndEscape( k ) + ( DEFINE_ES2_JSON__ENABLE_ALL_FURTURES && gap ? ': ' : ':' ) + v;
                                     };
@@ -502,7 +523,16 @@ if( !JSON ){
                     }
                 ];
 
-                var meta = JSON._meta,
+                var meta = { // table of character substitutions
+                    ' '  : ' ',
+                    '\b' : '\\b',
+                    '\t' : '\\t',
+                    '\n' : '\\n',
+                    // '\f' : '\\f',
+                    '\r' : '\\r',
+                    '"'  : '\\"',
+                    '\\' : '\\\\'
+                },
                     hierarchy = /** @type {!Array.<boolean>} */ ([]),
                     phase = START_TO_PARSE,
                     i = 0, l = text.length,
@@ -513,8 +543,12 @@ if( !JSON ){
                     chr = text.charAt( i );
 
                     if( !meta[ chr ] || chr === '"' || escape && chr === '\\' ){
+                        if( chr.charCodeAt( 0 ) < 32 ){
+                            return false;
+                        };
+
                         rule = rules[ phase ];
-                        
+
                         switch( phase ){
                             case END_TO_PARSE        : 
                             case ENTER_OBJECT        : // object に入った

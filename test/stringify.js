@@ -53,7 +53,7 @@ test('"Objects containing duplicate references should not throw a `TypeError`', 
 });
 test('Objects containing complex circular references should throw a `TypeError`', (t) => {
     // Complex cyclic structures.
-    var value = { "foo": { "b": { "foo": { "c": { "foo": null} } } } };
+    var value = { "foo": { "b": { "foo": { "c": { "foo": null } } } } };
     value.foo.b.foo.c.foo = value;
     t.is( json2.stringify( value ), void 0 );
 });
