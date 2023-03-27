@@ -319,13 +319,13 @@ if( !JSON ){
             // incorrectly, either silently deleting them, or treating them as line endings.
 
             // cx =  /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-
+            // TODO 多分この stage は不要
             for( l = text.length; i < l; ++i ){
                 chr  = text.charAt( i );
                 code = chr.charCodeAt( 0 );
 
                 if(
-                    code === 0 || code === 173 || // 
+                    /* code === 0 || */ code === 173 || // 
                     ( 1535 < code && code < 1541 ) ||
                     1807 === code ||
                     6068 === code || 6069 === code ||
@@ -443,18 +443,18 @@ if( !JSON ){
                 var PARSE_ERROR                = 19;
 
                 function isNumberChar( chr ){
-                    return 0 <= chr && chr <= 9;
+                    return [ true, true, true, true, true, true, true, true, true, true, true ][ chr ];
                 };
 
                 var rules = [
-                    /* 0 : 全ての開始 */ {
+                    /* 0 : パースの開始 */ {
                         '{' : ENTER_OBJECT,
                         '[' : ENTER_ARRAY,
                         '"' : ENTER_STRING_VALUE,
                         valueIsBooleanOrNull : END_TO_PARSE,
                         valueIsNumeric       : ENTER_NUMERIC_VALUE
                     },
-                    /* 1 : 値の終わり */ {
+                    /* 1 : パースの終わり */ {
                     },
                     /* 2 : 文字列値の終わり */ {
                         '"' : END_TO_PARSE
@@ -483,7 +483,7 @@ if( !JSON ){
                         valueIsNumeric       : ENTER_OBJECT_NUMERIC_VALUE
                         // true, false, null -> 6, 数値 -> 8
                     },
-                    /* 9 : object の値の終わり */ {
+                    /* 9 : object の boolean, string, null 値の終わり */ {
                         ',' : BEFORE_OBJECT_KEY,
                         '}' : LEAVE_OBJECT
                     },
@@ -510,7 +510,7 @@ if( !JSON ){
                         valueIsBooleanOrNull : AFTER_ARRAY_VALUE,
                         valueIsNumeric       : ENTER_ARRAY_NUMERIC_VALUE
                     },
-                    /* 14 : Array の値の終わり */ {
+                    /* 14 : Array の boolean, string, null 値の終わり */ {
                         ',' : BEFORE_ARRAY_VALUE,
                         ']' : LEAVE_ARRAY
                     },
@@ -524,29 +524,30 @@ if( !JSON ){
                 ];
 
                 var meta = { // table of character substitutions
-                    ' '  : ' ',
-                    '\b' : '\\b',
-                    '\t' : '\\t',
-                    '\n' : '\\n',
-                    // '\f' : '\\f',
-                    '\r' : '\\r',
-                    '"'  : '\\"',
-                    '\\' : '\\\\'
-                },
+                        ' '  : true,
+                        '\b' : true,
+                        '\t' : true,
+                        '\n' : true,
+                        // '\f' : '\\f',
+                        '\r' : true,
+                        // '"'  : true,
+                        '\\' : true
+                    },
                     hierarchy = /** @type {!Array.<boolean>} */ ([]),
                     phase = START_TO_PARSE,
                     i = 0, l = text.length,
-                    inArray = false, escape = false, chr, rule,
+                    inArray = false, escape = false, chr, chr1, chr2, rule,
                     whiteSpaceAfterNumber, flag, str;
-
+                
                 for( ; i < l; ++i ){
+                    chr2 = chr1;
+                    chr1 = chr;
                     chr = text.charAt( i );
 
-                    if( !meta[ chr ] || chr === '"' || escape && chr === '\\' ){
+                    if( !meta[ chr ] || escape && chr === '\\' ){
                         if( chr.charCodeAt( 0 ) < 32 ){
                             return false;
                         };
-
                         rule = rules[ phase ];
 
                         switch( phase ){
@@ -558,10 +559,18 @@ if( !JSON ){
                             case AFTER_ARRAY_VALUE   : // Array の値の終わり
                                 phase = rule[ chr ] || PARSE_ERROR;
                                 break;
-                            case ENTER_STRING_VALUE        : 
-                            case ENTER_OBJECT_KEY          : // object の key 名
+                            case ENTER_STRING_VALUE        :
                             case ENTER_OBJECT_STRING_VALUE : // object のメンバーの文字列の終わり " を待つ
                             case ENTER_ARRAY_STRING_VALUE  : // Array メンバーの文字列値の終わり
+                            case ENTER_OBJECT_KEY          : // object の key 名
+                                if( isNumberChar( chr ) ){
+                                    if( escape ){
+                                        return false; // \の後
+                                    };
+                                    if( chr2 === '\\' && chr1 === 'x' ){
+                                        return false; // \x の後
+                                    };
+                                };
                                 phase = !escape && rule[ chr ] || phase;
                                 break;
                             case START_TO_PARSE      : // 全ての開始
@@ -571,10 +580,14 @@ if( !JSON ){
                                 phase = PARSE_ERROR;
                                 if( rule[ chr ] ){
                                     phase = rule[ chr ];
-                                } else if( isNumberChar( chr ) || chr === '-' ){
+                                } else if( isNumberChar( chr ) ){
                                     phase = rule.valueIsNumeric;
                                     whiteSpaceAfterNumber = false;
-                                    flag = 0; 
+                                    flag = chr === '0' ? 16 : 0; 
+                                } else if( chr === '-' ){
+                                    phase = rule.valueIsNumeric;
+                                    whiteSpaceAfterNumber = false;
+                                    flag = 32; 
                                 } else {
                                     str = text.substr( i, 4 );
                                     if( str === 'true' || str === 'null' ){
@@ -590,22 +603,30 @@ if( !JSON ){
                             case ENTER_NUMERIC_VALUE        :
                             case ENTER_OBJECT_NUMERIC_VALUE : // object のメンバーの数値の終わりを待つ
                             case ENTER_ARRAY_NUMERIC_VALUE  : // Array メンバーの数値の終わり
-                                if( isNumberChar( chr ) && !whiteSpaceAfterNumber ){
-                                    if( flag & 1 ) flag |= 4; // . のあとに一つ以上の数字が来た。
-                                    if( flag & 2 ) flag |= 8; // e- のあとに一つ以上の数字が来た。
-                                    break;
-                                } else if( chr === '.' ){
-                                    phase = flag & 3 ? PARSE_ERROR : phase; // . が二つ以上、e+ の後に . は error
-                                    flag |= 1;
-                                    break;
-                                } else if( chr === 'e' || chr === 'E' ){
-                                    if( ( flag & 2 ) === 0 ){
-                                        str = text.substr( i, 2 );
-                                        if( str === chr + '+' || str === chr + '-' ){
-                                            ++i;
+                                if( !whiteSpaceAfterNumber ){
+                                    if( isNumberChar( chr ) ){
+                                        if( flag &  1 ) flag |= 4; // . のあとに一つ以上の数字が来た。
+                                        if( flag &  2 ) flag |= 8; // e- のあとに一つ以上の数字が来た。
+                                        if( flag & 16 ) return false; // 0 のあとに数字が続いた。
+                                        if( flag & 32 ){ // -0 と数字が続いた。
+                                            flag -= chr === '0' ? 16 : 32; // 32 を落して, 16 を立てる
                                         };
-                                        flag |= 2;
                                         break;
+                                    } else if( chr === '.' ){
+                                        if( flag &  3 ) return false; // . が二つ以上、e+ の後に . は error
+                                        if( flag & 16 ) flag -= 16; // 0. まで解析した
+                                        flag |= 1;
+                                        break;
+                                    } else if( chr === 'e' || chr === 'E' ){
+                                        if( flag & 16 ) flag -= 16; // 0e まで解析した
+                                        if( ( flag & 2 ) === 0 ){
+                                            str = text.substr( i, 2 );
+                                            if( str === chr + '+' || str === chr + '-' ){
+                                                ++i;
+                                            };
+                                            flag |= 2;
+                                            break;
+                                        };
                                     };
                                 };
                                  // ., e+ に続く数字がない
@@ -636,6 +657,11 @@ if( !JSON ){
                         escape = chr === '\\';
                         if( phase === ENTER_NUMERIC_VALUE || phase === ENTER_ARRAY_NUMERIC_VALUE || phase === ENTER_OBJECT_NUMERIC_VALUE ){ // number の間に挿入された空白文字は error
                             whiteSpaceAfterNumber = true;
+                        };
+                        if( phase === ENTER_STRING_VALUE || phase === ENTER_ARRAY_STRING_VALUE || phase === ENTER_OBJECT_STRING_VALUE || phase === ENTER_OBJECT_KEY ){ // number の間に挿入された空白文字は error
+                            if( chr.charCodeAt( 0 ) < 32 ){
+                                return false;
+                            };
                         };
                     };
                     // console.log( i, chr, phase );
