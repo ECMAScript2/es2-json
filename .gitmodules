@@ -1,0 +1,3 @@
+[submodule ".submodules/es2-core"]
+	path = .submodules/es2-core
+	url = https://github.com/ECMAScript2/es2-core.git

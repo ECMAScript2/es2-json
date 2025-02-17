@@ -7,7 +7,7 @@ const gulp            = require('gulp'),
 gulp.task('dist', gulp.series(
     function(){
         return gulp.src(
-                [ './src/closure-primitives/base.js', '../es2-core/src/js/**/*.js', './src/js/**/*.js' ]
+                [ './src/closure-primitives/base.js', './.submodules/es2-core/src/js/**/*.js', './src/js/**/*.js' ]
             ).pipe(
                 ClosureCompiler(
                     {
