@@ -64,24 +64,28 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
         }, i = 0, l = str.length, chr, code, ret = [ '"' ], n = 0;
 
         for( ; i < l; ++i ){
-            chr  = str.charAt( i );
-            code = chr.charCodeAt( 0 );
+            chr = str.charAt( i );
             // escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
             if( meta[ chr ] ){
                 chr = meta[ chr ];
-            } else if (
-                code === 92 || code === 34 || //chr === '\\' || chr === '"' ||
-                code < 31 || ( 126 < code && code < 160 ) ||
-                173 === code ||
-                ( 1535 < code && code < 1541 ) ||
-                6068 === code || 6069 === code ||
-                ( 8203 < code && code < 8208 ) ||
-                ( 8231 < code && code < 8240 ) || // u2028 - u202f
-                ( 8287 < code && code < 8304 ) || // u2060 - u206f
-                65279 === code ||
-                ( 65519 < code && code < 65536 ) // ufff0 - uffff
-            ){
-                chr = '\\u' + ( '0000' + code.toString( 16 ) ).slice( -4 );
+            } else {
+                code = chr.charCodeAt( 0 );
+                if (
+                    code === 92 || code === 34 || //chr === '\\' || chr === '"' ||
+                    code < 31 || ( 126 < code && code < 160 ) ||
+                    173 === code ||
+                    ( 1535 < code && code < 1541 ) ||
+                    6068 === code || 6069 === code ||
+                    ( 8203 < code && code < 8208 ) ||
+                    ( 8231 < code && code < 8240 ) || // u2028 - u202f
+                    ( 8287 < code && code < 8304 ) || // u2060 - u206f
+                    65279 === code ||
+                    ( 65519 < code && code < 65536 ) // ufff0 - uffff
+                ){
+                    // chr = '\\u' + ( '0000' + code.toString( 16 ) ).slice( -4 ); // Needs patch!
+                    chr = '0000' + code.toString( 16 );
+                    chr = '\\u' + chr.substr( chr.length - 4 );
+                };
             };
             ret[ ++n ] = chr;
         };

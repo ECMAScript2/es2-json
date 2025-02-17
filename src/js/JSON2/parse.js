@@ -129,10 +129,19 @@ JSON2.parse = function( text, opt_reviver ){
         // The walk method is used to recursively walk the resulting structure so
         // that modifications can be made.
 
-        var k, v, value = holder[ key ];
+        var value = holder[ key ], i, l, v, k;
 
-        if( value && typeof value === 'object' ){
-            // TODO isArray
+        if( core.isArray( value ) ){
+            value = /** @type {!Array} */ (value);
+            for( i = 0, l = value.length; i < l; ++i ){
+                v = walk( reviver, value, i );
+                if( v !== undefined ){
+                    value[ i ] = v;
+                } else {
+                    delete value[ i ];
+                };
+            };
+        } else if( core.isObject( value ) ){
             for( k in value ){
                 //if( Object.prototype.hasOwnProperty.call( value, k ) ){
                     v = walk( reviver, /** @type {!Object} */ (value), k );
