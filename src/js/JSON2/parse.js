@@ -159,116 +159,16 @@ JSON2.parse = function( text, opt_reviver ){
     /**
      * @param {string} text 
      * @return {boolean} */
-    function testIsValidJSONString( text ){
-        function isNumberChar( chr ){
-            return [ true, true, true, true, true, true, true, true, true, true, true ][ chr ];
+    function validateJSONString( text ){
+        function isNumericChar( chr ){
+            return [ true, true, true, true, true, true, true, true, true, true ][ chr ];
         };
 
-        function isValidNumericExpression(){
+        function isValidNumericExpression( flag ){
             return flag === 0 || ( flag & 5 ) !== 1 && ( flag & 10 ) !== 2;
         };
 
-        var START_TO_PARSE             = 0;
-        var END_TO_PARSE               = 1;
-        var ENTER_STRING_VALUE         = 2;
-        var ENTER_NUMERIC_VALUE        = 3;
-    
-        var ENTER_OBJECT               = 4;
-        var BEFORE_OBJECT_KEY          = 5;
-        var ENTER_OBJECT_KEY           = 6;
-        var BEFORE_OBJECT_CORON        = 7;
-        var BEFORE_OBJECT_VALUE        = 8;
-        var AFTER_OBJECT_VALUE         = 9;
-        var ENTER_OBJECT_STRING_VALUE  = 10;
-        var ENTER_OBJECT_NUMERIC_VALUE = 11;
-    
-        var ENTER_ARRAY                = 12;
-        var BEFORE_ARRAY_VALUE         = 13;
-        var AFTER_ARRAY_VALUE          = 14;
-        var ENTER_ARRAY_STRING_VALUE   = 15;
-        var ENTER_ARRAY_NUMERIC_VALUE  = 16;
-    
-        var LEAVE_OBJECT               = 17;
-        var LEAVE_ARRAY                = 18;
-        var PARSE_ERROR                = 19;
-
-        var rules = [
-            /* 0 : パースの開始 */ {
-                '{' : ENTER_OBJECT,
-                '[' : ENTER_ARRAY,
-                '"' : ENTER_STRING_VALUE,
-                valueIsBooleanOrNull : END_TO_PARSE,
-                valueIsNumeric       : ENTER_NUMERIC_VALUE
-            },
-            /* 1 : パースの終わり */ {
-            },
-            /* 2 : 文字列値の終わり */ {
-                '"' : END_TO_PARSE
-            },
-            /* 3 : 数値の終わり */ {
-            },
-
-            /* 4 : object に入った */ {
-                '"' : ENTER_OBJECT_KEY, // key の開始
-                '}' : LEAVE_OBJECT  // 即終わり(Empty Object)
-            },
-            /* 5 : object の key の開始 */ {
-                '"' : ENTER_OBJECT_KEY // key の開始    
-            },
-            /* 6 : object の key 名 */ {
-                '"' : BEFORE_OBJECT_CORON // key の終わり
-            },
-            /* 7 : object の key に続く : を待つ */ {
-                ':' : BEFORE_OBJECT_VALUE // これ以外は error
-            },
-            /* 8 : object の値の開始 */ {
-                '{' : ENTER_OBJECT,
-                '[' : ENTER_ARRAY,
-                '"' : ENTER_OBJECT_STRING_VALUE,
-                valueIsBooleanOrNull : AFTER_OBJECT_VALUE,
-                valueIsNumeric       : ENTER_OBJECT_NUMERIC_VALUE
-                // true, false, null -> 6, 数値 -> 8
-            },
-            /* 9 : object の boolean, string, null 値の終わり */ {
-                ',' : BEFORE_OBJECT_KEY,
-                '}' : LEAVE_OBJECT
-            },
-            /* 10 : object メンバーの文字列値の終わり */ {
-                '"' : AFTER_OBJECT_VALUE // 値の終わり
-            },
-            /* 11 : object メンバーの数値の終わり */ {
-                ',' : BEFORE_OBJECT_KEY,
-                '}' : LEAVE_OBJECT
-            },
-
-            /* 12 : Array の値の開始 */ {
-                '{'  : ENTER_OBJECT,
-                '['  : ENTER_ARRAY,
-                '"'  : ENTER_ARRAY_STRING_VALUE,
-                ']'  : LEAVE_ARRAY, // 即終わり(Empty Array)
-                valueIsBooleanOrNull : AFTER_ARRAY_VALUE,
-                valueIsNumeric       : ENTER_ARRAY_NUMERIC_VALUE
-            },
-            /* 13 : Array の値 */ {
-                '{' : ENTER_OBJECT,
-                '[' : ENTER_ARRAY,
-                '"' : ENTER_ARRAY_STRING_VALUE,
-                valueIsBooleanOrNull : AFTER_ARRAY_VALUE,
-                valueIsNumeric       : ENTER_ARRAY_NUMERIC_VALUE
-            },
-            /* 14 : Array の boolean, string, null 値の終わり */ {
-                ',' : BEFORE_ARRAY_VALUE,
-                ']' : LEAVE_ARRAY
-            },
-            /* 15 : Array メンバーの文字列値の終わり */ {
-                '"' : AFTER_ARRAY_VALUE
-            },
-            /* 16 : Array メンバーの数値の終わり */ {
-                ',' : BEFORE_ARRAY_VALUE,
-                ']' : LEAVE_ARRAY
-            }
-        ];
-
+        /** @const */
         var meta = { // table of character substitutions
                 ' '  : true,
                 '\b' : true,
@@ -278,12 +178,14 @@ JSON2.parse = function( text, opt_reviver ){
                 '\r' : true,
                 // '"'  : true,
                 '\\' : true
-            },
-            hierarchy = /** @type {!Array.<boolean>} */ ([]),
-            phase = START_TO_PARSE,
-            i = 0, l = text.length,
-            inArray = false, escape = false, chr, chr1, chr2, rule,
-            whiteSpaceAfterNumber, flag, str;
+            };
+        var hierarchy = /** @const {!Array.<boolean>} */ ([]);
+        var phase = EnumPhase.START_TO_PARSE,
+            i = 0, l = text.length;
+        var inArray = false, escape = false, whiteSpaceAfterNumber;
+        var chr, chr1, chr2, str;
+        var rule;
+        var flag;
         
         for( ; i < l; ++i ){
             chr2 = chr1;
@@ -294,22 +196,22 @@ JSON2.parse = function( text, opt_reviver ){
                 if( chr.charCodeAt( 0 ) < 32 ){
                     return false;
                 };
-                rule = rules[ phase ];
+                rule = PARSING_RULES[ phase ];
 
                 switch( phase ){
-                    case END_TO_PARSE        : 
-                    case ENTER_OBJECT        : // object に入った
-                    case BEFORE_OBJECT_KEY   : // object の key の開始
-                    case BEFORE_OBJECT_CORON : // object の key に続く : を待つ
-                    case AFTER_OBJECT_VALUE  : // object の 値の終わり
-                    case AFTER_ARRAY_VALUE   : // Array の値の終わり
-                        phase = rule[ chr ] || PARSE_ERROR;
+                    case EnumPhase.END_TO_PARSE        : 
+                    case EnumPhase.ENTER_OBJECT        : // object に入った
+                    case EnumPhase.BEFORE_OBJECT_KEY   : // object の key の開始
+                    case EnumPhase.BEFORE_OBJECT_CORON : // object の key に続く : を待つ
+                    case EnumPhase.AFTER_OBJECT_VALUE  : // object の 値の終わり
+                    case EnumPhase.AFTER_ARRAY_VALUE   : // Array の値の終わり
+                        phase = rule[ chr ] || EnumPhase.PARSE_ERROR;
                         break;
-                    case ENTER_STRING_VALUE        :
-                    case ENTER_OBJECT_STRING_VALUE : // object のメンバーの文字列の終わり " を待つ
-                    case ENTER_ARRAY_STRING_VALUE  : // Array メンバーの文字列値の終わり
-                    case ENTER_OBJECT_KEY          : // object の key 名
-                        if( isNumberChar( chr ) ){
+                    case EnumPhase.IN_STRING_VALUE        :
+                    case EnumPhase.IN_OBJECT_STRING_VALUE : // object のメンバーの文字列の終わり " を待つ
+                    case EnumPhase.IN_ARRAY_STRING_VALUE  : // Array メンバーの文字列値の終わり
+                    case EnumPhase.ENTER_OBJECT_KEY       : // object の key 名
+                        if( isNumericChar( chr ) ){
                             if( escape ){
                                 return false; // \の後
                             };
@@ -319,14 +221,14 @@ JSON2.parse = function( text, opt_reviver ){
                         };
                         phase = !escape && rule[ chr ] || phase;
                         break;
-                    case START_TO_PARSE      : // 全ての開始
-                    case BEFORE_OBJECT_VALUE : // object の値の開始
-                    case ENTER_ARRAY         :
-                    case BEFORE_ARRAY_VALUE  : // Array の値の開始
-                        phase = PARSE_ERROR;
+                    case EnumPhase.START_TO_PARSE      : // 全ての開始
+                    case EnumPhase.BEFORE_OBJECT_VALUE : // object の値の開始
+                    case EnumPhase.ENTER_ARRAY         :
+                    case EnumPhase.BEFORE_ARRAY_VALUE  : // Array の値の開始
+                        phase = EnumPhase.PARSE_ERROR;
                         if( rule[ chr ] ){
                             phase = rule[ chr ];
-                        } else if( isNumberChar( chr ) ){
+                        } else if( isNumericChar( chr ) ){
                             phase = rule.valueIsNumeric;
                             whiteSpaceAfterNumber = false;
                             flag = chr === '0' ? 16 : 0; 
@@ -346,11 +248,11 @@ JSON2.parse = function( text, opt_reviver ){
                             };
                         };
                         break;
-                    case ENTER_NUMERIC_VALUE        :
-                    case ENTER_OBJECT_NUMERIC_VALUE : // object のメンバーの数値の終わりを待つ
-                    case ENTER_ARRAY_NUMERIC_VALUE  : // Array メンバーの数値の終わり
+                    case EnumPhase.IN_NUMERIC_VALUE        :
+                    case EnumPhase.IN_OBJECT_NUMERIC_VALUE : // object のメンバーの数値の終わりを待つ
+                    case EnumPhase.IN_ARRAY_NUMERIC_VALUE  : // Array メンバーの数値の終わり
                         if( !whiteSpaceAfterNumber ){
-                            if( isNumberChar( chr ) ){
+                            if( isNumericChar( chr ) ){
                                 if( flag &  1 ) flag |= 4; // . のあとに一つ以上の数字が来た。
                                 if( flag &  2 ) flag |= 8; // e- のあとに一つ以上の数字が来た。
                                 if( flag & 16 ) return false; // 0 のあとに数字が続いた。
@@ -376,35 +278,34 @@ JSON2.parse = function( text, opt_reviver ){
                             };
                         };
                          // ., e+ に続く数字がない
-                        phase = isValidNumericExpression() ? rule[ chr ] || PARSE_ERROR : PARSE_ERROR;
+                        phase = isValidNumericExpression( flag ) && rule[ chr ] || EnumPhase.PARSE_ERROR;
                         break;
                 };
                 switch( phase ){
-                    case ENTER_OBJECT :
-                    case ENTER_ARRAY :
+                    case EnumPhase.ENTER_OBJECT :
+                    case EnumPhase.ENTER_ARRAY  :
                         hierarchy.push( inArray );
-                        inArray = phase === ENTER_ARRAY;
+                        inArray = phase === EnumPhase.ENTER_ARRAY;
                         break;
-                    case LEAVE_OBJECT :
-                    case LEAVE_ARRAY :
+                    case EnumPhase.LEAVE_OBJECT :
+                    case EnumPhase.LEAVE_ARRAY  :
                         if( 1 < hierarchy.length ){
                             inArray = hierarchy.pop();
-                            phase = inArray ? AFTER_ARRAY_VALUE : AFTER_OBJECT_VALUE;
+                            phase = inArray ? EnumPhase.AFTER_ARRAY_VALUE : EnumPhase.AFTER_OBJECT_VALUE;
                         } else {
-                            phase = END_TO_PARSE;
+                            phase = EnumPhase.END_TO_PARSE;
                         };
                         break;
-                    case PARSE_ERROR :
-                        // console.log( 'ERROR---', '"' + chr + '"', phase, rule, isValidNumericExpression(), flag );
+                    case EnumPhase.PARSE_ERROR :
+                        // console.log( 'ERROR---', '"' + chr + '"', phase, rule, isValidNumericExpression( flag ), flag );
                         return false;
                 };
                 escape = false;
             } else {
                 escape = chr === '\\';
-                if( phase === ENTER_NUMERIC_VALUE || phase === ENTER_ARRAY_NUMERIC_VALUE || phase === ENTER_OBJECT_NUMERIC_VALUE ){ // number の間に挿入された空白文字は error
+                if( phase === EnumPhase.IN_NUMERIC_VALUE || phase === EnumPhase.IN_ARRAY_NUMERIC_VALUE || phase === EnumPhase.IN_OBJECT_NUMERIC_VALUE ){ // number の間に挿入された空白文字は error
                     whiteSpaceAfterNumber = true;
-                };
-                if( phase === ENTER_STRING_VALUE || phase === ENTER_ARRAY_STRING_VALUE || phase === ENTER_OBJECT_STRING_VALUE || phase === ENTER_OBJECT_KEY ){ // number の間に挿入された空白文字は error
+                } else if( phase === EnumPhase.IN_STRING_VALUE || phase === EnumPhase.IN_ARRAY_STRING_VALUE || phase === EnumPhase.IN_OBJECT_STRING_VALUE || phase === EnumPhase.ENTER_OBJECT_KEY ){ // string の間に挿入された制御文字は error
                     if( chr.charCodeAt( 0 ) < 32 ){
                         return false;
                     };
@@ -413,7 +314,7 @@ JSON2.parse = function( text, opt_reviver ){
             // console.log( i, chr, phase );
         };
 
-        return phase === END_TO_PARSE || ( phase === ENTER_NUMERIC_VALUE && isValidNumericExpression() );
+        return phase === EnumPhase.END_TO_PARSE || ( phase === EnumPhase.IN_NUMERIC_VALUE && isValidNumericExpression( flag ) );
     };
 
     var i = 0, l, chr, code, ret = [], n = -1, j;
@@ -464,7 +365,7 @@ JSON2.parse = function( text, opt_reviver ){
 
     //if (/^[\],:{}\s]*$/.test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '@').replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']').replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
 
-    if( testIsValidJSONString( text ) ){
+    if( validateJSONString( text ) ){
 
         // In the third stage we use the eval function to compile the text into a
         // JavaScript structure. The '{' operator is subject to a syntactic ambiguity
@@ -478,8 +379,8 @@ JSON2.parse = function( text, opt_reviver ){
 
         // { '' : value }, Empty string object literal key has problem in Opera 7.x!
 
-        if( JSON2.DEFINE.USE_REPLACER ){
-            return typeof opt_reviver === 'function' ? walk( opt_reviver, { '_' : j }, '_' ) : j;
+        if( JSON2.DEFINE.USE_REVIVER ){
+            return core.isFunction( opt_reviver ) ? walk( /** @type {!Function} */ (opt_reviver), { '_' : j }, '_' ) : j;
         } else {
             return j;
         };
