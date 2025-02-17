@@ -326,13 +326,15 @@ JSON2.parse = function( text, opt_reviver ){
     // incorrectly, either silently deleting them, or treating them as line endings.
 
     // cx =  /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-    // TODO 多分この stage は不要
+
+    /* ------------
     for( l = text.length; i < l; ++i ){
         chr  = text.charAt( i );
         code = chr.charCodeAt( 0 );
 
         if(
-            /* code === 0 || */ code === 173 || // 
+            // code === 0 ||
+            code === 173 || //
             ( 1535 < code && code < 1541 ) ||
             1807 === code ||
             6068 === code || 6069 === code ||
@@ -347,8 +349,9 @@ JSON2.parse = function( text, opt_reviver ){
 
         ret[ ++n ] = chr;
     };
-    
     text = ret.join( '' );
+    
+    --------------- */
 
     // In the second stage, we run the text against regular expressions that look
     // for non-JSON patterns. We are especially concerned with '()' and 'new'

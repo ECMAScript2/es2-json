@@ -21,9 +21,9 @@ gulp.task('dist', gulp.series(
                         warning_level     : 'VERBOSE',
                         language_in       : 'ECMASCRIPT3',
                         language_out      : 'ECMASCRIPT3',
-                        output_wrapper    : '(function(Function, Array, String, Number, Boolean, Date, isFinite){\n' +
+                        output_wrapper    : '(function(Function, Array, Date, isFinite){\n' +
                                             '%output%\n' +
-                                            '})(Function, Array, String, Number, Boolean, Date, isFinite);\n'
+                                            '})(Function, Array, Date, isFinite);\n'
                     }
                 )
             ).pipe(

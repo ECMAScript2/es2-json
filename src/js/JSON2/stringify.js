@@ -57,7 +57,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
                     ( 65519 < code && code < 65536 ) // ufff0 - uffff
                 ){
                     // chr = '\\u' + ( '0000' + code.toString( 16 ) ).slice( -4 ); // Needs patch!
-                    chr = '0000' + code.toString( 16 );
+                    chr = '000' + code.toString( 16 );
                     chr = '\\u' + chr.substr( chr.length - 4 );
                 };
             };
