@@ -119,86 +119,12 @@ var PARSING_RULES = [
  * @param {!Function=} opt_reviver 
  * @return {*} */
 JSON2.parse = function( text, opt_reviver ){
-    var i = 0, l, chr, code, ret = [], n = -1, j;
-
-    text += '';
-
-    // Parsing happens in four stages. In the first stage, we replace certain
-    // Unicode characters with escape sequences. JavaScript handles many characters
-    // incorrectly, either silently deleting them, or treating them as line endings.
-
-    // cx =  /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-    // TODO 多分この stage は不要
-    for( l = text.length; i < l; ++i ){
-        chr  = text.charAt( i );
-        code = chr.charCodeAt( 0 );
-
-        if(
-            /* code === 0 || */ code === 173 || // 
-            ( 1535 < code && code < 1541 ) ||
-            1807 === code ||
-            6068 === code || 6069 === code ||
-            ( 8203 < code && code < 8208 ) ||
-            ( 8231 < code && code < 8240 ) || // u2028 - u202f
-            ( 8287 < code && code < 8304 ) || // u2060 - u206f
-            65279 === code ||
-            ( 65520 <= code && code <= 65535 ) // ufff0 - uffff
-        ){
-            chr = '\\u' + ( '0000' + code.toString( 16 ) ).slice( -4 );
-        };
-
-        ret[ ++n ] = chr;
-    };
-    
-    text = ret.join( '' );
-
-    // In the second stage, we run the text against regular expressions that look
-    // for non-JSON patterns. We are especially concerned with '()' and 'new'
-    // because they can cause invocation, and '=' because it can cause mutation.
-    // But just to be safe, we want to reject all unexpected forms.
-
-    // We split the second stage into 4 regexp operations in order to work around
-    // crippling inefficiencies in IE's and Safari's regexp engines. First we
-    // replace the JSON backslash pairs with '@' (a non-JSON character). Second, we
-    // replace all simple value tokens with ']' characters. Third, we delete all
-    // open brackets that follow a colon or comma or that begin the text. Finally,
-    // we look to see that the remaining characters are only whitespace or ']' or
-    // ',' or ':' or '{' or '}'. If that is so, then the text is safe for eval.
-
-    //if (/^[\],:{}\s]*$/.test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '@').replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']').replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
-
-    if( testIsValidJSONString( text ) ){
-
-        // In the third stage we use the eval function to compile the text into a
-        // JavaScript structure. The '{' operator is subject to a syntactic ambiguity
-        // in JavaScript: it can begin a block or an object literal. We wrap the text
-        // in parens to eliminate the ambiguity.
-
-        j = eval( '(' + text + ')' );
-
-        // In the optional fourth stage, we recursively walk the new structure, passing
-        // each name/value pair to a reviver function for possible transformation.
-
-        // { '' : value }, Empty string object literal key has problem in Opera 7.x!
-
-        if( JSON2.DEFINE.USE_REPLACER ){
-            return typeof opt_reviver === 'function' ? walk( opt_reviver, { '_' : j }, '_' ) : j;
-        } else {
-            return j;
-        };
-    };
-
-    // If the text is not JSON parseable, then a SyntaxError is thrown.
-
-    // throw new SyntaxError('JSON.parse');
-
     /**
      * 
      * @param {!Function} reviver 
-     * @param {!Object|!Array} holder 
+     * @param {!Object | !Array} holder 
      * @param {string|number} key 
-     * @return {*}
-     */
+     * @return {*} */
     function walk( reviver, holder, key ){
         // The walk method is used to recursively walk the resulting structure so
         // that modifications can be made.
@@ -222,11 +148,17 @@ JSON2.parse = function( text, opt_reviver ){
     };
 
     /**
-     * 
      * @param {string} text 
-     * @return {boolean}
-     */
+     * @return {boolean} */
     function testIsValidJSONString( text ){
+        function isNumberChar( chr ){
+            return [ true, true, true, true, true, true, true, true, true, true, true ][ chr ];
+        };
+
+        function isValidNumericExpression(){
+            return flag === 0 || ( flag & 5 ) !== 1 && ( flag & 10 ) !== 2;
+        };
+
         var START_TO_PARSE             = 0;
         var END_TO_PARSE               = 1;
         var ENTER_STRING_VALUE         = 2;
@@ -250,10 +182,6 @@ JSON2.parse = function( text, opt_reviver ){
         var LEAVE_OBJECT               = 17;
         var LEAVE_ARRAY                = 18;
         var PARSE_ERROR                = 19;
-
-        function isNumberChar( chr ){
-            return [ true, true, true, true, true, true, true, true, true, true, true ][ chr ];
-        };
 
         var rules = [
             /* 0 : パースの開始 */ {
@@ -476,9 +404,79 @@ JSON2.parse = function( text, opt_reviver ){
             // console.log( i, chr, phase );
         };
 
-        function isValidNumericExpression(){
-            return flag === 0 || ( flag & 5 ) !== 1 && ( flag & 10 ) !== 2;
-        };
         return phase === END_TO_PARSE || ( phase === ENTER_NUMERIC_VALUE && isValidNumericExpression() );
     };
+
+    var i = 0, l, chr, code, ret = [], n = -1, j;
+
+    text += '';
+
+    // Parsing happens in four stages. In the first stage, we replace certain
+    // Unicode characters with escape sequences. JavaScript handles many characters
+    // incorrectly, either silently deleting them, or treating them as line endings.
+
+    // cx =  /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+    // TODO 多分この stage は不要
+    for( l = text.length; i < l; ++i ){
+        chr  = text.charAt( i );
+        code = chr.charCodeAt( 0 );
+
+        if(
+            /* code === 0 || */ code === 173 || // 
+            ( 1535 < code && code < 1541 ) ||
+            1807 === code ||
+            6068 === code || 6069 === code ||
+            ( 8203 < code && code < 8208 ) ||
+            ( 8231 < code && code < 8240 ) || // u2028 - u202f
+            ( 8287 < code && code < 8304 ) || // u2060 - u206f
+            65279 === code ||
+            ( 65520 <= code && code <= 65535 ) // ufff0 - uffff
+        ){
+            chr = '\\u' + ( '0000' + code.toString( 16 ) ).slice( -4 );
+        };
+
+        ret[ ++n ] = chr;
+    };
+    
+    text = ret.join( '' );
+
+    // In the second stage, we run the text against regular expressions that look
+    // for non-JSON patterns. We are especially concerned with '()' and 'new'
+    // because they can cause invocation, and '=' because it can cause mutation.
+    // But just to be safe, we want to reject all unexpected forms.
+
+    // We split the second stage into 4 regexp operations in order to work around
+    // crippling inefficiencies in IE's and Safari's regexp engines. First we
+    // replace the JSON backslash pairs with '@' (a non-JSON character). Second, we
+    // replace all simple value tokens with ']' characters. Third, we delete all
+    // open brackets that follow a colon or comma or that begin the text. Finally,
+    // we look to see that the remaining characters are only whitespace or ']' or
+    // ',' or ':' or '{' or '}'. If that is so, then the text is safe for eval.
+
+    //if (/^[\],:{}\s]*$/.test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '@').replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']').replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
+
+    if( testIsValidJSONString( text ) ){
+
+        // In the third stage we use the eval function to compile the text into a
+        // JavaScript structure. The '{' operator is subject to a syntactic ambiguity
+        // in JavaScript: it can begin a block or an object literal. We wrap the text
+        // in parens to eliminate the ambiguity.
+
+        j = eval( '(' + text + ')' );
+
+        // In the optional fourth stage, we recursively walk the new structure, passing
+        // each name/value pair to a reviver function for possible transformation.
+
+        // { '' : value }, Empty string object literal key has problem in Opera 7.x!
+
+        if( JSON2.DEFINE.USE_REPLACER ){
+            return typeof opt_reviver === 'function' ? walk( opt_reviver, { '_' : j }, '_' ) : j;
+        } else {
+            return j;
+        };
+    };
+
+    // If the text is not JSON parseable, then a SyntaxError is thrown.
+
+    // throw new SyntaxError('JSON.parse');
 };

@@ -18,39 +18,6 @@ goog.require( 'core.all' );
  * @return {string|undefined} 
  */
 JSON2.stringify = function( value, opt_replacer, opt_space ){
-    var _isFinite = isFinite, i, indent = '', objectList = [], isNestingError = false;
-
-    // If the space parameter is a number, make an indent string containing that
-    // many spaces.
-
-    if( JSON2.DEFINE.USE_REPLACER ){
-        if( typeof opt_space === 'number' ){
-            for( i = 0; i < opt_space; ++i ){
-                indent += ' ';
-            };
-
-            // If the space parameter is a string, it will be used as the indent string.
-        } else if( typeof opt_space === 'string' ){
-            indent = opt_space;
-        };
-
-        // If there is a replacer, it must be a function or an array.
-        // Otherwise, throw an error.
-        if( opt_replacer && typeof opt_replacer !== 'function' && !isArray( opt_replacer ) ){
-            //throw new Error('JSON.stringify');
-            return;
-        };
-
-        // Make a fake root object containing our value under the key of ''.
-        // Return the result of stringifying the value.
-
-        // { '' : value }, Empty string object literal key has problem in Opera 7.x!
-
-        return toString( '_', { '_' : value }, opt_replacer, '', indent );
-    } else {
-        return toString( '_', { '_' : value } );
-    };
-
     /**
      * 
      * @param {*} value 
@@ -295,5 +262,38 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
                         '{\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind + '}' :
                         '{' + partial.join( ',' ) + '}';
         };
+    };
+
+    var _isFinite = isFinite, i, indent = '', objectList = [], isNestingError = false;
+
+    // If the space parameter is a number, make an indent string containing that
+    // many spaces.
+
+    if( JSON2.DEFINE.USE_REPLACER ){
+        if( typeof opt_space === 'number' ){
+            for( i = 0; i < opt_space; ++i ){
+                indent += ' ';
+            };
+
+            // If the space parameter is a string, it will be used as the indent string.
+        } else if( typeof opt_space === 'string' ){
+            indent = opt_space;
+        };
+
+        // If there is a replacer, it must be a function or an array.
+        // Otherwise, throw an error.
+        if( opt_replacer && typeof opt_replacer !== 'function' && !isArray( opt_replacer ) ){
+            //throw new Error('JSON.stringify');
+            return;
+        };
+
+        // Make a fake root object containing our value under the key of ''.
+        // Return the result of stringifying the value.
+
+        // { '' : value }, Empty string object literal key has problem in Opera 7.x!
+
+        return toString( '_', { '_' : value }, opt_replacer, '', indent );
+    } else {
+        return toString( '_', { '_' : value } );
     };
 };
