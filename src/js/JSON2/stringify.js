@@ -19,34 +19,8 @@ goog.require( 'core.all' );
  */
 JSON2.stringify = function( value, opt_replacer, opt_space ){
     /**
-     * 
-     * @param {*} value 
-     * @return {boolean}
-     */
-    function isArray( value ){
-        return value.pop === [].pop;
-    };
-    function toXX( n ){
-        // Format integers to have at least two digits.
-        return n < 10 ? '0' + n : n;
-    };
-    function toXXX( n ){
-        n = '00' + n;
-        return n.substr( n.length - 3 );
-    };
-    function toXXXX( n ){
-        n = '000' + n;
-        return n.substr( n.length - 4 );
-    };
-    function toXXXXXX( n ){
-        n = '00000' + n;
-        return n.substr( n.length - 6 );
-    };
-    /**
-     * 
      * @param {string} str 
-     * @return {string} 
-     */
+     * @return {string} */
     function wrapQuoteAndEscape( str ){
         // If the string contains no control characters, no quote characters, and no
         // backslash characters, then we can safely slap some quotes around it.
@@ -92,14 +66,12 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
         return ret.join( '' ) + '"';
     };
     /**
-     * 
-     * @param {string|number} key 
-     * @param {!Object|!Array} holder
-     * @param {!Function|!Array=} opt_replacer 
+     * @param {string | number} key 
+     * @param {!Object | !Array} holder
+     * @param {!Function | !Array=} opt_replacer 
      * @param {string=} opt_mind 
      * @param {string=} opt_indent 
-     * @return {string|undefined} 
-     */
+     * @return {string|undefined} */
     function toString( key, holder, opt_replacer, opt_mind, opt_indent ){
         // Produce a string from holder[key].
 
@@ -109,7 +81,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
             l, gap = opt_mind,
             partial, n = -1,
             value = holder[ key ],
-            year, indexOfObjectList;
+            clazz, indexOfObjectList;
 
         // null or 0 or NaN or undefined
         if( value === 0 ) return '0';
@@ -118,29 +90,17 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
 
         // If the value has a toJSON method, call it to obtain a replacement value.
 
-        if( typeof value === 'object' ){
-            switch( value.constructor ){
-                case Date :
-                    year = value.getUTCFullYear();
+        if( core.isObject( value ) ){
+            clazz = value.constructor;
 
-                    return _isFinite( + value ) ? // <= value.valueOf()
-                            '"' + (
-                                year <= 0 || 1e4 <= year
-                                    ? ( year < 0 ? '-' : '+' ) + toXXXXXX( year < 0 ? -year : year )
-                                    : toXXXX( year )
-                            ) + '-' +
-                            toXX( value.getUTCMonth() + 1 ) + '-' +
-                            toXX( value.getUTCDate()      ) + 'T' +
-                            toXX( value.getUTCHours()     ) + ':' +
-                            toXX( value.getUTCMinutes()   ) + ':' +
-                            toXX( value.getUTCSeconds()   ) + '.' +
-                            toXXX( value.getUTCMilliseconds() ) + 'Z"' : 'null';
-                case String :
-                    return wrapQuoteAndEscape( '' + value );
-                case Number :
-                    return _isFinite( value ) ? '' + value : 'null';
-                case Boolean :
-                    return '' + value;
+            if( clazz === Date ){
+                return _isFinite( + value /** <= value.valueOf() */) ? '"' + core.dateToJSON( value ) + '"' : 'null';
+            } else if( clazz === String ){
+                return wrapQuoteAndEscape( '' + value );
+            } else if( clazz === Number ){
+                return _isFinite( value ) ? '' + value : 'null';
+            } else if( clazz === Boolean ){
+                return '' + value;
             };
         };
 
@@ -148,7 +108,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
         // obtain a replacement value.
 
         if( JSON2.DEFINE.USE_REPLACER ){
-            if( typeof opt_replacer === 'function' ){
+            if( core.isFunction( opt_replacer ) ){
                 value = opt_replacer.apply( holder, [ key, value ] );
             };
         };
@@ -174,97 +134,100 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
             case 'object':
                 // Due to a specification blunder in ECMAScript, typeof null is 'object',
                 // so watch out for that case.
-                if( JSON2.DEFINE.USE_REPLACER ){
-                    if( !value ) return 'null';
-                };
-
-                if( objectList.indexOf( value ) === -1 ){
-                    objectList.push( value );
-                    indexOfObjectList = objectList.length;
-                } else {
-                    isNestingError = true;
-                    return;
-                };
-
-                // Make an array to hold the partial results of stringifying this object value.
-
-                gap += opt_indent;
-                partial = [];
-
-                // Is the value an array?
-
-                if( isArray( value ) ){
-                    value = /** @type {!Array} */ (value);
-                    // The value is an array. Stringify every element. Use null as a placeholder
-                    // for non-JSON values.
-                    for( i = 0, l = value.length; i < l; ++i ){
-                        if( JSON2.DEFINE.USE_REPLACER ){
-                            partial[ i ] = toString( i, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) ) || 'null';
-                        } else {
-                            partial[ i ] = toString( i, value ) || 'null';
-                        };
-                        if( isNestingError ){
-                            return;
-                        };
-                        objectList.length = indexOfObjectList;
+                if( !JSON2.DEFINE.USE_REPLACER || value ){
+                    if( objectList.indexOf( value ) === -1 ){
+                        objectList.push( value );
+                        indexOfObjectList = objectList.length;
+                    } else {
+                        isNestingError = true;
+                        return;
                     };
 
-                    // Join all of the elements together, separated with commas, and wrap them in
-                    // brackets.
-                    return l === 0 ?
-                            '[]' :
-                        JSON2.DEFINE.USE_REPLACER && gap ?
-                            '[\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind + ']' :
-                            '[' + partial.join( ',' ) + ']';
-                };
-                value = /** @type {!Object} */ (value);
+                    // Make an array to hold the partial results of stringifying this object value.
 
-                // If the replacer is an array, use it to select the members to be stringified.
+                    gap += opt_indent;
+                    partial = [];
 
-                if( JSON2.DEFINE.USE_REPLACER && opt_replacer && isArray( opt_replacer ) ){
-                    for( i = 0, l = opt_replacer.length; i < l; ++i ){
-                        k = opt_replacer[ i ];
-                        if( typeof k === 'string' ){
-                            v = toString( k, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
-                            if( isNestingError ){
-                                return;
-                            };
-                            objectList.length = indexOfObjectList;
-                            if( v ){
-                                partial[ ++n ] = wrapQuoteAndEscape( k ) + ( gap ? ': ' : ':' ) + v;
-                            };
-                        };
-                    };
-                } else {
-
-                    // Otherwise, iterate through all of the keys in the object.
-
-                    for( k in value ){
-                        //if( Object.prototype.hasOwnProperty.call( value, k ) ){
-                            if( JSON2.DEFINE.USE_REPLACER ){
-                                v = toString( k, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
+                    // Is the value an array?
+                    if( core.isArray( value ) ){
+                        value = /** @type {!Array} */ (value);
+                        // The value is an array. Stringify every element. Use null as a placeholder
+                        // for non-JSON values.
+                        for( i = 0, l = value.length; i < l; ++i ){
+                            if( JSON2.DEFINE.USE_REPLACER || JSON2.DEFINE.USE_SPACE ){
+                                partial[ i ] = toString( i, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
                             } else {
-                                v = toString( k, value );
+                                partial[ i ] = toString( i, value );
                             };
                             if( isNestingError ){
                                 return;
                             };
                             objectList.length = indexOfObjectList;
-                            if( v ){
-                                partial[ ++n ] = wrapQuoteAndEscape( k ) + ( JSON2.DEFINE.USE_REPLACER && gap ? ': ' : ':' ) + v;
-                            };
-                        //};
+                        };
+
+                        // Join all of the elements together, separated with commas, and wrap them in
+                        // brackets.
+                        return '[' + 
+                                   (
+                                       l === 0
+                                           ? ''
+                                     : JSON2.DEFINE.USE_SPACE && gap
+                                           ? '\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind
+                                           : partial.join( ',' )
+                                   ) +
+                               ']';
                     };
+                    value = /** @type {!Object} */ (value);
+
+                    // If the replacer is an array, use it to select the members to be stringified.
+                    if( JSON2.DEFINE.USE_REPLACER && core.isArray( opt_replacer ) ){
+                        for( i = 0, l = opt_replacer.length; i < l; ++i ){
+                            k = opt_replacer[ i ];
+                            if( core.isString( k ) ){
+                                v = toString( k, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
+                                if( isNestingError ){
+                                    return;
+                                };
+                                objectList.length = indexOfObjectList;
+                                if( v ){
+                                    partial[ ++n ] = wrapQuoteAndEscape( k ) + ( gap ? ': ' : ':' ) + v;
+                                };
+                            };
+                        };
+                    } else {
+                        // Otherwise, iterate through all of the keys in the object.
+                        for( k in value ){
+                            //if( Object.prototype.hasOwnProperty.call( value, k ) ){
+                                if( JSON2.DEFINE.USE_REPLACER || JSON2.DEFINE.USE_SPACE ){
+                                    v = toString( k, value, opt_replacer, /** @type {string} */ (gap), /** @type {string} */ (opt_indent) );
+                                } else {
+                                    v = toString( k, value );
+                                };
+                                if( isNestingError ){
+                                    return;
+                                };
+                                objectList.length = indexOfObjectList;
+                                if( v ){
+                                    partial[ ++n ] = wrapQuoteAndEscape( k ) + ( JSON2.DEFINE.USE_SPACE && gap ? ': ' : ':' ) + v;
+                                };
+                            //};
+                        };
+                    };
+
+                    // Join all of the member texts together, separated with commas,
+                    // and wrap them in braces.
+                    return '{' +
+                               (
+                                   n < 0
+                                       ? ''
+                                  : JSON2.DEFINE.USE_SPACE && gap
+                                       ? '\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind
+                                       : partial.join( ',' )
+                               ) +
+                           '}';
                 };
-
-                // Join all of the member texts together, separated with commas,
-                // and wrap them in braces.
-
-                return n < 0 ?
-                        '{}' :
-                    JSON2.DEFINE.USE_REPLACER && gap ?
-                        '{\n' + gap + partial.join( ',\n' + gap ) + '\n' + opt_mind + '}' :
-                        '{' + partial.join( ',' ) + '}';
+            default:
+                return 'null';
         };
     };
 
@@ -273,22 +236,26 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
     // If the space parameter is a number, make an indent string containing that
     // many spaces.
 
-    if( JSON2.DEFINE.USE_REPLACER ){
-        if( typeof opt_space === 'number' ){
-            for( i = 0; i < opt_space; ++i ){
-                indent += ' ';
+    if( JSON2.DEFINE.USE_REPLACER || JSON2.DEFINE.USE_SPACE ){
+        if( JSON2.DEFINE.USE_SPACE ){
+            if( core.isNumber( opt_space ) ){
+                for( i = 0; i < opt_space; ++i ){
+                    indent += ' ';
+                };
+    
+                // If the space parameter is a string, it will be used as the indent string.
+            } else if( core.isString( opt_space ) ){
+                indent = opt_space;
             };
-
-            // If the space parameter is a string, it will be used as the indent string.
-        } else if( typeof opt_space === 'string' ){
-            indent = opt_space;
         };
 
-        // If there is a replacer, it must be a function or an array.
-        // Otherwise, throw an error.
-        if( opt_replacer && typeof opt_replacer !== 'function' && !isArray( opt_replacer ) ){
-            //throw new Error('JSON.stringify');
-            return;
+        if( JSON2.DEFINE.USE_REPLACER ){
+            // If there is a replacer, it must be a function or an array.
+            // Otherwise, throw an error.
+            if( opt_replacer && !core.isFunction( opt_replacer ) && !core.isArray( opt_replacer ) ){
+                //throw new Error('JSON.stringify');
+                return;
+            };
         };
 
         // Make a fake root object containing our value under the key of ''.
@@ -296,7 +263,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
 
         // { '' : value }, Empty string object literal key has problem in Opera 7.x!
 
-        return toString( '_', { '_' : value }, opt_replacer, '', indent );
+        return toString( '_', { '_' : value }, opt_replacer, '', /** @type {string} */ (indent) );
     } else {
         return toString( '_', { '_' : value } );
     };
