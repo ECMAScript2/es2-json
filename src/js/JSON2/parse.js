@@ -317,7 +317,8 @@ JSON2.parse = function( text, opt_reviver ){
         return phase === EnumPhase.END_TO_PARSE || ( phase === EnumPhase.IN_NUMERIC_VALUE && isValidNumericExpression( flag ) );
     };
 
-    var i = 0, l, chr, code, ret = [], n = -1, j;
+    // var i = 0, l, chr, code, ret = [], n = -1;
+    var j;
 
     text += '';
 

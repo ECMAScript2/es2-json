@@ -13,9 +13,9 @@ goog.require( 'core.all' );
  * 
  *  If opt_replacer is invalid, return `undefined`. 
  * @param {*} value 
- * @param {!Function|!Array=} opt_replacer 
- * @param {number|string=} opt_space 
- * @return {string|undefined} 
+ * @param {Function | Array | null=} opt_replacer 
+ * @param {number | string=} opt_space 
+ * @return {string | void} 
  */
 JSON2.stringify = function( value, opt_replacer, opt_space ){
     /**
@@ -68,11 +68,17 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
     /**
      * @param {string | number} key 
      * @param {!Object | !Array} holder
-     * @param {!Function | !Array=} opt_replacer 
+     * @param {Function | Array=} opt_replacer 
      * @param {string=} opt_mind 
      * @param {string=} opt_indent 
-     * @return {string|undefined} */
+     * @return {string | void} */
     function toString( key, holder, opt_replacer, opt_mind, opt_indent ){
+        /**
+         * @param {number} value
+         * @return {boolean} */
+        function isFinite( value ){
+            return -1/0 < value && value < 1/0;
+        };
         // Produce a string from holder[key].
 
         var i, // The loop counter.
@@ -94,11 +100,11 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
             clazz = value.constructor;
 
             if( clazz === Date ){
-                return _isFinite( + value /** <= value.valueOf() */) ? '"' + core.dateToJSON( value ) + '"' : 'null';
+                return isFinite( + value /** <= value.valueOf() */) ? '"' + core.dateToJSON( value ) + '"' : 'null';
             } else if( clazz === String ){
                 return wrapQuoteAndEscape( '' + value );
             } else if( clazz === Number ){
-                return _isFinite( value ) ? '' + value : 'null';
+                return isFinite( + value ) ? '' + value : 'null';
             } else if( clazz === Boolean ){
                 return '' + value;
             };
@@ -120,7 +126,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
 
             // JSON numbers must be finite. Encode non-finite numbers as null.
             case 'number':
-                return _isFinite( value ) ? '' + value : 'null';
+                return isFinite( value ) ? '' + value : 'null';
 
             // If the value is a boolean or null, convert it to a string. Note:
             // typeof null does not produce 'null'. The case is included here in
@@ -231,7 +237,7 @@ JSON2.stringify = function( value, opt_replacer, opt_space ){
         };
     };
 
-    var _isFinite = isFinite, i, indent = '', objectList = [], isNestingError = false;
+    var i, indent = '', objectList = [], isNestingError = false;
 
     // If the space parameter is a number, make an indent string containing that
     // many spaces.
